@@ -1,3 +1,7 @@
+-- TO DO
+-- add hotkey to settings
+-- nothing to destroy output message
+
 local CrapDestroyer = CreateFrame("Frame")
 local itemListFrame = nil  -- Track the item list frame
 local addonVisible = false
@@ -198,7 +202,6 @@ function CrapDestroyer:CreateUI()
         end
     end)
 
-
     -- Create the List Button
     local listButton = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
     listButton:SetPoint("TOPLEFT", addButton, "BOTTOMLEFT", 0, -10)
@@ -336,8 +339,6 @@ SlashCmdList["CRAPDESTROYER"] = CrapDestroyerSlashCommandHandler
 
 -- Set up the slash command trigger
 SLASH_CRAPDESTROYER1 = "/crap"
-
-
 
 
 function CrapDestroyer:OnEvent(event, arg1)

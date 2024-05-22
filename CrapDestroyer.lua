@@ -311,8 +311,8 @@ local function CrapDestroyerSlashCommandHandler(msg)
         ToggleAddonVisibility()
 
     elseif msg == "info" then
-        print("CrapDestroyer is an simple addon that helps you manage unwanted items. Sometimes you are too far from a merchant and destroying items like Salted Venison or Honey-Spiced Lichen manually can be tedious when farming... This addon will destroy this crap for you!")
-        print("Please note that unlike most addons that auto-selling items this one is permanently destroying them, so make sure you don't put important stuff in the list\n")
+        print("CrapDestroyer is a simple addon that helps you manage unwanted items. Sometimes you are too far away from a vendors and destroying items like Salted Venison or Honey-Spiced Lichen manually can be tedious while farming... This addon will destroy that crap for you!")
+        print("Please note that unlike most addons that auto-sell items, this one will permanently destroy them, so make sure you don't put anything important in the list.\n")
         print("|cFFFF0000[Basic usage]:|r")
         print("Open the UI by typing |cFFFF0000/crap toggle|r in chat")
         print("You should see a window with 3 buttons")

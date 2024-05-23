@@ -5,7 +5,8 @@
 local CrapDestroyer = CreateFrame("Frame")
 local itemListFrame = nil  -- Track the item list frame
 local addonVisible = false
-
+local items = {} 
+local itemsInfo = {}
 
 CrapDestroyer:RegisterEvent("ADDON_LOADED")
 
@@ -13,25 +14,16 @@ local function SaveAddonData()
     if not CrapDestroyerData then
         CrapDestroyerData = {}
     end
-    CrapDestroyerData.items = {}  -- Initialize an empty table for items
-
-    for _, itemName in ipairs(items) do
-        local itemInfo = {}
-        local _,_,itemQuality,_,_,_,_,_,_,itemTexture = GetItemInfo(itemName)
-        itemInfo.name = itemName
-        itemInfo.texture = itemTexture
-        table.insert(CrapDestroyerData.items, itemInfo)
-    end
+    CrapDestroyerData.items = items  -- Directly save the items list
+    CrapDestroyerData.itemsInfo = itemsInfo
 end
-
 
 local function LoadAddonData()
     if CrapDestroyerData and CrapDestroyerData.items then
-        items = {}  -- Initialize an empty table for items
-
-        for _, itemInfo in ipairs(CrapDestroyerData.items) do
-            table.insert(items, itemInfo.name)
-        end
+        items = CrapDestroyerData.items
+    end
+    if CrapDestroyerData and CrapDestroyerData.itemsInfo then
+        itemsInfo = CrapDestroyerData.itemsInfo
     end
 end
 
@@ -49,11 +41,6 @@ local function ToggleAddonVisibility()
     addonVisible = not addonVisible
 end
 
-
-
-local List = {} -- define and initialize the List table
-items = {"Scroll of Spirit VII", "Shiny Fish Scales", "Salted Venison"} -- example of unwanted items
-
 local function IsItemUnwanted(itemName)
     for _, unwantedItem in ipairs(items) do
         if itemName == unwantedItem then
@@ -66,29 +53,29 @@ end
 local function QualityCheck(itemLink)
     local _, _, itemQuality = GetItemInfo(tostring(itemLink))
     
-    -- Define the quality threshold for unwanted items (e.g., Poor quality items have a quality of 0)
-    local qualityThreshold = 2  -- Change this to your desired quality threshold
+    -- Define the quality threshold for unwanted items (0 = gray, 1 = white, 2 = green...)
+    local qualityThreshold = 2  -- only gray and white items will be deleted by default
 
     if itemQuality and itemQuality < qualityThreshold then
         return true
     end
-
     return false
 end
 
 
 local function DeleteUnwantedItems()
     for bag = 0, 4 do
-        for slot = 1, 36 do
+        for slot = 1, GetContainerNumSlots(bag) do
             local _, itemCount, _, _, _, _, itemLink = GetContainerItemInfo(bag, slot)
-            if itemLink and IsItemUnwanted(GetItemInfo(itemLink)) and QualityCheck(itemLink)  then
-                PickupContainerItem(bag, slot)
-                DeleteCursorItem()
-                print("|cFFFF0000Deleted: " .. itemLink .. " (" .. itemCount .. ")")
-            elseif itemLink and IsItemUnwanted(GetItemInfo(itemLink)) and QualityCheck(itemLink) == false then
-                print("|cFFFF0000Aborted deletion of an item above common quality: "..tostring(itemLink))
-            elseif itemLink and IsItemUnwanted(GetItemInfo(itemLink)) == false then
-                --print(tostring(itemLink).." is not unwanted["..bag.."]["..slot.."]")
+            if itemLink then
+                local itemName = GetItemInfo(itemLink)
+                if itemName and IsItemUnwanted(itemName) and QualityCheck(itemLink) then
+                    PickupContainerItem(bag, slot)
+                    DeleteCursorItem()
+                    print("|cFFFF0000Deleted: " .. itemLink .. " (" .. itemCount .. ")")
+                elseif itemName and IsItemUnwanted(itemName) and QualityCheck(itemLink) == false then
+                    print("|cFFFF0000Aborted deletion of an item above common quality: "..tostring(itemLink))
+                end
             end
         end
     end
@@ -102,6 +89,7 @@ local function IsItemInList(itemName)
     end
     return false
 end
+
 local function AddItemToList(itemName)
     -- Check if the item is not already in the list
     if not IsItemInList(itemName) then
@@ -124,7 +112,6 @@ local function RemoveItemFromList(itemName)
     end
     print(itemName .. " not found in the deletion list.")
 end
-
 -- Function to create the user interface (UI)
 function CrapDestroyer:CreateUI()
     -- Create the main frame
@@ -166,145 +153,135 @@ function CrapDestroyer:CreateUI()
     addButton:SetPoint("TOPLEFT", destroyButton, "BOTTOMLEFT", 0, -10)
     addButton:SetSize(100, 25)
     addButton:SetText("Add Item")
-
-    -- Create a flag to track if an item is being dragged
-    local isDraggingItem = false
-
-    -- Set up functions for drag-and-drop
     addButton:RegisterForDrag("LeftButton")
-    addButton:SetScript("OnReceiveDrag", function(self)
+    
+    -- Drag to Add Button logic
+    addButton:SetScript("OnReceiveDrag", function()
         local cursorType, itemID = GetCursorInfo()
         if cursorType == "item" then
             local itemName = GetItemInfo(itemID)
-            if itemName and itemListFrame then
+            if itemName then
                 AddItemToList(itemName)
                 UpdateItemList()
-                else
-                    AddItemToList(itemName)
             end
-            -- Cancel the drag and drop
-            PickupItem(0)
-            isDraggingItem = false
-        end
-    end)
-    addButton:SetScript("OnDragStart", function(self)
-        self:SetAttribute("type1", "item")
-        self:SetAttribute("item1", "item")
-        isDraggingItem = true
-    end)
-    addButton:SetScript("OnDragStop", function(self)
-        self:SetAttribute("type1", nil)
-        self:SetAttribute("item1", nil)
-        if isDraggingItem then
-            -- Cancel the drag and drop
-            PickupItem(0)
-            isDraggingItem = false
+            ClearCursor()
         end
     end)
 
-    -- Create the List Button
+    -- Create Item List button
     local listButton = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
     listButton:SetPoint("TOPLEFT", addButton, "BOTTOMLEFT", 0, -10)
     listButton:SetSize(100, 25)
     listButton:SetText("Item List")
-
-
     listButton:SetScript("OnClick", function()
-        if itemListFrame and itemListFrame:IsVisible() then
-            itemListFrame:Hide()
-        else
-            -- Create a new frame to display the item list and buttons
-            itemListFrame = CreateFrame("Frame", "ItemListFrame", UIParent)
-            itemListFrame:SetSize(250, 300)
-            
-            --Checks if there is enough space for the list on the screen
-            local screenWidth, _ = GetScreenWidth(), GetScreenHeight()
-            local availableSpace = screenWidth - self:GetRight()
-
-            if (availableSpace - 300) < itemListFrame:GetWidth() then
-                itemListFrame:SetPoint("TOPRIGHT", self, "TOPLEFT", 0, 0) -- Anchor to the left
-            else
-                itemListFrame:SetPoint("TOPLEFT", self, "TOPRIGHT", 0, 0) -- Anchor to the right
-            end
-            
-            itemListFrame:SetBackdrop({
-                bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                tile = true, tileSize = 16, edgeSize = 16,
-                insets = { left = 4, right = 4, top = 4, bottom = 4 }
-            })
-            itemListFrame:SetBackdropColor(0, 0, 0, 0.7)
-
-            local yOffset = -10
-            local itemListButtons = {}  -- Track the buttons in the item list
-
-            local function CreateItemButton(itemName)
-
-                local button = CreateFrame("Button", nil, itemListFrame)
-                button:SetPoint("TOPLEFT", 10, yOffset)
-                button:SetSize(20, 20)
-            
-                local removeButton = CreateFrame("Button", nil, button)
-                removeButton:SetPoint("LEFT", button, "LEFT", 0, 0)
-                removeButton:SetSize(20, 20)
-                removeButton:SetNormalTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Up")
-                removeButton:SetHighlightTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Highlight")
-                removeButton:SetScript("OnClick", function()
-                    RemoveItemFromList(itemName)
-                    UpdateItemList()  -- Update the list after removing an item
-                end)
-            
-                local iconTexture = button:CreateTexture(nil, "ARTWORK")
-                iconTexture:SetSize(20, 20)  
-                iconTexture:SetPoint("LEFT", removeButton, "RIGHT", 5, 0)
-                local _,_,itemQuality,_,_,_,_,_,_,itemTexture = GetItemInfo(itemName)
-                --iconTexture:SetTexture('"'..tostring(itemTexture)..'"')
-                iconTexture:SetTexture(itemTexture)
-                print(itemTexture)
-            
-                local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-                label:SetPoint("LEFT", iconTexture, "RIGHT", 5, 0)
-                for i = 0, 8 do 
-                    local r, g, b, hex = GetItemQualityColor(i)
-                    if itemQuality == i then
-                        label:SetText(hex..itemName)
-                    end
-                end
-                yOffset = yOffset - 25
-            
-                return button
-            end
-
-            function UpdateItemList()
-                for _, button in ipairs(itemListButtons) do
-                    button:Hide()
-                    button:ClearAllPoints()  -- Clear button anchor points
-                end
-
-                itemListButtons = {}
-
-                yOffset = -10
-                for _, itemName in ipairs(items) do
-                    local buttonData = CreateItemButton(itemName)
-                    itemListButtons[#itemListButtons + 1] = buttonData
-                end
-
-                itemListFrame:SetHeight(10 - yOffset)
-            end
-
-            UpdateItemList()  -- Initial update of the item list
-
-            -- Create a button to close the item list frame
-            local closeButton = CreateFrame("Button", nil, itemListFrame, "UIPanelCloseButton")
-            closeButton:SetPoint("TOPRIGHT", 0, 0)
-            closeButton:SetScript("OnClick", function()
+        if itemListFrame then
+            if itemListFrame:IsVisible() then
                 itemListFrame:Hide()
-            end)
+            else
+                itemListFrame:Show()
+            end
+        else
+            CreateItemListFrame()
         end
     end)
 end
 
+function CreateItemListFrame()
+    itemListFrame = CreateFrame("Frame", "ItemListFrame", UIParent)
+    itemListFrame:SetSize(250, 300)
+    local screenWidth, _ = GetScreenWidth(), GetScreenHeight()
+    local availableSpace = screenWidth - CrapDestroyer:GetRight()
+    if (availableSpace - 300) < itemListFrame:GetWidth() then
+        itemListFrame:SetPoint("TOPRIGHT", CrapDestroyer, "TOPLEFT", 0, 0)
+    else
+        itemListFrame:SetPoint("TOPLEFT", CrapDestroyer, "TOPRIGHT", 0, 0)
+    end
+    itemListFrame:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    itemListFrame:SetBackdropColor(0, 0, 0, 0.7)
+    UpdateItemList()
 
+    local closeButton = CreateFrame("Button", nil, itemListFrame, "UIPanelCloseButton")
+    closeButton:SetPoint("TOPRIGHT", 0, 0)
+    closeButton:SetScript("OnClick", function() itemListFrame:Hide() end)
+end
+
+function CreateItemButton(itemName) --here is the problem that itemlink is a string if an item not in a bag
+    local itemLink = GetItemInfo(itemName)
+    print(itemLink)
+    if itemLink then
+        local _, _, itemQuality, _, _, _, _, _, _, itemTexture = GetItemInfo(itemLink)
+        itemsInfo[itemName] = { quality = itemQuality, texture = itemTexture, name = itemName }
+    else
+        print("not itemlink")
+        itemsInfo[itemName] = { quality = nil, texture = nil, name = itemName }
+    end
+
+    local yOffset = -10
+    local button = CreateFrame("Button", nil, itemListFrame)
+    button:SetPoint("TOPLEFT", 10, yOffset)
+    button:SetSize(20, 20)
+
+    local removeButton = CreateFrame("Button", nil, button)
+    removeButton:SetPoint("LEFT", button, "LEFT", 0, 0)
+    removeButton:SetSize(20, 20)
+    removeButton:SetNormalTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Up")
+    removeButton:SetHighlightTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Highlight")
+    removeButton:SetScript("OnClick", function()
+        RemoveItemFromList(itemName)
+        UpdateItemList()
+    end)
+
+    local iconTexture = button:CreateTexture(nil, "ARTWORK")
+    iconTexture:SetSize(20, 20)
+    iconTexture:SetPoint("LEFT", removeButton, "RIGHT", 5, 0)
+
+    local itemInfo = itemsInfo[itemName]
+    if itemInfo and itemInfo.texture then
+        local itemQuality = itemInfo.quality
+        local itemTexture = itemInfo.texture
+        iconTexture:SetTexture(itemTexture)
+        print(itemTexture)
+
+        local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        label:SetPoint("LEFT", iconTexture, "RIGHT", 5, 0)
+        for i = 0, 8 do
+            local _, _, _, hex = GetItemQualityColor(i)
+            if itemQuality == i then
+                label:SetText(hex .. itemInfo.name)
+            end
+        end
+    else
+        local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        label:SetPoint("LEFT", iconTexture, "RIGHT", 5, 0)
+        label:SetText(itemName)
+    end
+
+    yOffset = yOffset - 25
+    return button
+end
+
+function UpdateItemList()
+    if not itemListFrame then return end
+
+    local yOffset = -10
+    for _, child in pairs({ itemListFrame:GetChildren() }) do
+        child:Hide()
+    end
+
+    for _, item in ipairs(items) do
+        print("updateUI item:"..item)
+        local button = CreateItemButton(item)
+        button:SetPoint("TOPLEFT", 10, yOffset)
+        button:Show()
+        yOffset = yOffset - 25
+    end
+end
+    
 local function CrapDestroyerSlashCommandHandler(msg)
     if msg == "toggle" then
         -- Toggle the visibility of your addon's UI here

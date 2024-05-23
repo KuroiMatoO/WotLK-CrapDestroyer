@@ -1,8 +1,8 @@
 ## Interface: 30300
 ## Title: Crap Destroyer
 ## Author: Kuroi_Mato_O
-## Version: 0.1
+## Version: 0.2
 ## SavedVariables: CrapDestroyerData
-## SavedVariablesPerCharacter: items
+## SavedVariablesPerCharacter: items, itemsInfo
 
 CrapDestroyer.lua

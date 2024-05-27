@@ -3,6 +3,6 @@
 ## Author: Kuroi_Mato_O
 ## Version: 0.2
 ## SavedVariables: CrapDestroyerData
-## SavedVariablesPerCharacter: items, itemsInfo
+## SavedVariablesPerCharacter: CrapDestroyerItems, CrapDestroyerItemsInfo
 
 CrapDestroyer.lua

@@ -5,27 +5,56 @@
 local CrapDestroyer = CreateFrame("Frame")
 local itemListFrame = nil  -- Track the item list frame
 local addonVisible = false
-local items = {} 
-local itemsInfo = {}
+
+
 
 CrapDestroyer:RegisterEvent("ADDON_LOADED")
 
-local function SaveAddonData()
-    if not CrapDestroyerData then
-        CrapDestroyerData = {}
-    end
-    CrapDestroyerData.items = items  -- Directly save the items list
-    CrapDestroyerData.itemsInfo = itemsInfo
-end
+-- need to properly rewrite this shit for "save globally" instead of "per character" option (settings soon^TM)
 
-local function LoadAddonData()
-    if CrapDestroyerData and CrapDestroyerData.items then
-        items = CrapDestroyerData.items
-    end
-    if CrapDestroyerData and CrapDestroyerData.itemsInfo then
-        itemsInfo = CrapDestroyerData.itemsInfo
-    end
-end
+-- local function SaveAddonData() 
+--     if not CrapDestroyerData then
+--         CrapDestroyerData = {}
+--     end
+--     CrapDestroyerData.items = {}  -- Initialize an empty table for items
+--     CrapDestroyerData.itemsInfo = {}  -- Initialize an empty table for itemsInfo
+
+--     for key, itemName in ipairs(items) do
+--         table.insert(CrapDestroyerData.items, itemName)
+--         print(key, itemName)
+--     end
+
+--     for key, itemInfo in ipairs(itemsInfo) do
+--         table.insert(CrapDestroyerData.itemsInfo, itemInfo)
+--         print(key, itemName)
+
+--     end
+-- end
+
+-- local function LoadAddonData()
+--     if CrapDestroyerData and CrapDestroyerData.items then
+--         print('crapdestroyerData and CrapdestroyerData.items LOADED')
+--         items = {}  -- Initialize an empty table for items
+
+--         for _, itemName in ipairs(CrapDestroyerData.items) do
+--             table.insert(items, itemName)
+--         end
+--     else
+--         print('crapdestroyerData and CrapdestroyerData.items NOT LOADED')
+--     end
+
+--     if CrapDestroyerData and CrapDestroyerData.itemsInfo then
+--         print('crapdestroyerData and CrapdestroyerData.itemsInfo LOADED')
+--         itemsInfo = {}  -- Initialize an empty table for itemsInfo
+
+--         for _, itemInfo in ipairs(CrapDestroyerData.itemsInfo) do
+--             table.insert(itemsInfo, itemInfo)
+--         end
+--     else
+--         print('crapdestroyerData and CrapdestroyerData.itemsInfo NOT LOADED')
+--     end
+-- end
+
 
 local function ToggleAddonVisibility()
     if addonVisible then
@@ -42,7 +71,7 @@ local function ToggleAddonVisibility()
 end
 
 local function IsItemUnwanted(itemName)
-    for _, unwantedItem in ipairs(items) do
+    for _, unwantedItem in ipairs(CrapDestroyerItems) do
         if itemName == unwantedItem then
             return true
         end
@@ -82,7 +111,7 @@ local function DeleteUnwantedItems()
 end
 
 local function IsItemInList(itemName)
-    for _, item in ipairs(items) do
+    for _, item in ipairs(CrapDestroyerItems) do
         if item == itemName then
             return true
         end
@@ -91,9 +120,8 @@ local function IsItemInList(itemName)
 end
 
 local function AddItemToList(itemName)
-    -- Check if the item is not already in the list
     if not IsItemInList(itemName) then
-        table.insert(items, itemName)
+        table.insert(CrapDestroyerItems, itemName)
         print(itemName .. " |cFFFF0000added to the deletion list.|r")
     else
         print(itemName .. " |cFFFFFF00is already in the deletion list!|r")
@@ -103,16 +131,16 @@ end
 
 
 local function RemoveItemFromList(itemName)
-    for i, item in ipairs(items) do
+    for i, item in ipairs(CrapDestroyerItems) do
         if item == itemName then
-            table.remove(items, i)
+            table.remove(CrapDestroyerItems, i)
             print(itemName .. " |cFF00FF00removed from the deletion list.|r")
             return
         end
     end
     print(itemName .. " not found in the deletion list.")
 end
--- Function to create the user interface (UI)
+
 function CrapDestroyer:CreateUI()
     -- Create the main frame
     self:SetSize(145, 115)
@@ -140,6 +168,23 @@ function CrapDestroyer:CreateUI()
     minimizeButton:SetHighlightTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Highlight")
     minimizeButton:SetScript("OnClick", function()
         ToggleAddonVisibility()
+    end)
+    -- Options Button
+    local optionsButton = CreateFrame("Button", nil, self, "UIPanelCloseButton")
+    optionsButton:SetPoint("TOPLEFT", 1, 1)
+    optionsButton:SetSize(20, 20) 
+    optionsButton:SetNormalTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Up")
+    optionsButton:SetHighlightTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Highlight")
+    optionsButton:SetScript("OnClick", function()
+        if OptionsFrame then
+            if OptionsFrame:IsVisible() then
+                OptionsFrame:Hide()
+            else
+                OptionsFrame:Show()
+            end
+        else
+            CreateOptionsFrame()
+        end
     end)
     -- Create the Destroy Button
     local destroyButton = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
@@ -184,8 +229,45 @@ function CrapDestroyer:CreateUI()
             CreateItemListFrame()
         end
     end)
-end
 
+
+
+    --DEBUG (outdated)
+
+    -- local saveDataButton = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
+    -- saveDataButton:SetPoint("TOPLEFT", listButton, "BOTTOMLEFT", 0, -10)
+    -- saveDataButton:SetSize(100, 25)
+    -- saveDataButton:SetText("Save Data")
+    -- saveDataButton:SetScript("OnClick", SaveAddonData)
+
+    -- -- Create Load Data Button
+    -- local loadDataButton = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
+    -- loadDataButton:SetPoint("TOPLEFT", saveDataButton, "BOTTOMLEFT", 0, -10)
+    -- loadDataButton:SetSize(100, 25)
+    -- loadDataButton:SetText("Load Data")
+    -- loadDataButton:SetScript("OnClick", LoadAddonData)
+    
+    -- --update list button
+    -- local updateListButton = CreateFrame("Button", nil, self, "UIPanelButtonTemplate")
+    -- updateListButton:SetPoint("TOPLEFT", loadDataButton, "BOTTOMLEFT", 0, -10)
+    -- updateListButton:SetSize(100, 25)
+    -- updateListButton:SetText("Update List")
+    -- updateListButton:SetScript("OnClick", function()
+    --     UpdateItemList()
+    -- end)
+    --/DEBUG
+end
+function CreateOptionsFrame()
+    OptionsFrame = CreateFrame("Frame", "OptionsFrame", UIParent)
+    OptionsFrame:SetSize(250, 300)
+    OptionsFrame:SetPoint("TOPRIGHT", CrapDestroyer, "TOPLEFT", 0, 0)
+    OptionsFrame:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+end
 function CreateItemListFrame()
     itemListFrame = CreateFrame("Frame", "ItemListFrame", UIParent)
     itemListFrame:SetSize(250, 300)
@@ -215,10 +297,10 @@ function CreateItemButton(itemName) --here is the problem that itemlink is a str
     print(itemLink)
     if itemLink then
         local _, _, itemQuality, _, _, _, _, _, _, itemTexture = GetItemInfo(itemLink)
-        itemsInfo[itemName] = { quality = itemQuality, texture = itemTexture, name = itemName }
+        CrapDestroyerItemsInfo[itemName] = { quality = itemQuality, texture = itemTexture, name = itemName }
     else
         print("not itemlink")
-        itemsInfo[itemName] = { quality = nil, texture = nil, name = itemName }
+        CrapDestroyerItemsInfo[itemName] = { quality = nil, texture = nil, name = itemName }
     end
 
     local yOffset = -10
@@ -240,7 +322,7 @@ function CreateItemButton(itemName) --here is the problem that itemlink is a str
     iconTexture:SetSize(20, 20)
     iconTexture:SetPoint("LEFT", removeButton, "RIGHT", 5, 0)
 
-    local itemInfo = itemsInfo[itemName]
+    local itemInfo = CrapDestroyerItemsInfo[itemName]
     if itemInfo and itemInfo.texture then
         local itemQuality = itemInfo.quality
         local itemTexture = itemInfo.texture
@@ -273,7 +355,7 @@ function UpdateItemList()
         child:Hide()
     end
 
-    for _, item in ipairs(items) do
+    for _, item in ipairs(CrapDestroyerItems) do
         print("updateUI item:"..item)
         local button = CreateItemButton(item)
         button:SetPoint("TOPLEFT", 10, yOffset)
@@ -321,14 +403,31 @@ SLASH_CRAPDESTROYER1 = "/crap"
 function CrapDestroyer:OnEvent(event, arg1)
     if event == "ADDON_LOADED" and arg1 == "CrapDestroyer" then
         print("|cFFFF0000Crap Destroyer addon loaded. Type /crap to open UI or /crap info for help|r")
+        CrapDestroyerItems = CrapDestroyerItems
+        CrapDestroyerItemsInfo = CrapDestroyerItemsInfo
+        if not CrapDestroyerItems then
+            CrapDestroyerItems = {}
+            print('CrapDestroyerItems IS EMPTY')
+        end
+        
+        if not CrapDestroyerItemsInfo then 
+            CrapDestroyerItemsInfo = {}
+            print('CrapDestroyerItemsInfo IS EMPTY')
+
+        end
+
         self:CreateUI()
-        LoadAddonData()  -- Load saved data when the addon is loaded
-    elseif event == "PLAYER_QUITTING" then
-        SaveAddonData()  -- Save your addon's data when quitting the game
+        -- LoadAddonData()  -- Load saved data when the addon is loaded
+    elseif event == "PLAYER_LOGOUT" then
+        -- SaveAddonData()  -- Save your addon's data when quitting the game
+        
     end
 end
 
 -- Register events
 CrapDestroyer:RegisterEvent("ADDON_LOADED")
-CrapDestroyer:RegisterEvent("PLAYER_QUITTING")
+CrapDestroyer:RegisterEvent("PLAYER_LOGOUT")
 CrapDestroyer:SetScript("OnEvent", CrapDestroyer.OnEvent)
+
+
+
